@@ -8,81 +8,82 @@ Quick start
 
 Imagine the following class needed some testing (yes, arguably the tests should come first if your following true TDD):
 
+```csharp
+public class SavingsAccount
+{
+    private readonly IInterestCalculator _interestCalculator;
 
-    public class SavingsAccount
+    public SavingsAccount(IInterestCalculator interestCalculator)
     {
-        private readonly IInterestCalculator _interestCalculator;
-
-        public SavingsAccount(IInterestCalculator interestCalculator)
-        {
-            _interestCalculator = interestCalculator;
-        }
-
-        public decimal Balance { get; private set; }
-        
-        public void Deposit(decimal amount)
-        {
-            Balance += amount;
-        }
-
-        public void WithDraw(decimal amount)
-        {
-            Balance -= amount;
-        }
-
-        public void ApplyInterest()
-        {
-            Balance += _interestCalculator.Calculate();
-        }
+        _interestCalculator = interestCalculator;
     }
 
-    public interface IInterestCalculator
+    public decimal Balance { get; private set; }
+    
+    public void Deposit(decimal amount)
     {
-        decimal Calculate();
+        Balance += amount;
     }
 
+    public void WithDraw(decimal amount)
+    {
+        Balance -= amount;
+    }
+
+    public void ApplyInterest()
+    {
+        Balance += _interestCalculator.Calculate();
+    }
+}
+
+public interface IInterestCalculator
+{
+    decimal Calculate();
+}
+```
 
 A typical unit test using the NSubstitute mocking framework might look something similar to that below:
-
-    [TestClass]
-    public class SavingsAccountTests
+```csharp
+[TestClass]
+public class SavingsAccountTests
+{
+    [TestMethod]
+    public void ApplyInterestUpdatesTheBalance()
     {
-        [TestMethod]
-        public void ApplyInterestUpdatesTheBalance()
-        {
-            // Arange
-            IInterestCalculator interestCalculator = Substitute.For<IInterestCalculator>();
-            interestCalculator.Calculate().Returns(123);
-            SavingsAccount savingsAccount = new SavingsAccount(interestCalculator);
+        // Arange
+        IInterestCalculator interestCalculator = Substitute.For<IInterestCalculator>();
+        interestCalculator.Calculate().Returns(123);
+        SavingsAccount savingsAccount = new SavingsAccount(interestCalculator);
 
-            // Act
-            savingsAccount.ApplyInterest();
+        // Act
+        savingsAccount.ApplyInterest();
 
-            // Assert
-            Assert.AreEqual(123, savingsAccount.Balance);
-        }
+        // Assert
+        Assert.AreEqual(123, savingsAccount.Balance);
     }
+}
+```
 
 Using NSubstituteAutoMocker the test can be simplifed to the following:
-
-    [TestClass]
-    public class SavingsAccountTestsWithNSubstituteAutoMocker
+```csharp
+[TestClass]
+public class SavingsAccountTestsWithNSubstituteAutoMocker
+{
+    [TestMethod]
+    public void ApplyInterestUpdatesTheBalance()
     {
-        [TestMethod]
-        public void ApplyInterestUpdatesTheBalance()
-        {
-            // Arange
-            var automocker = new NSubstituteAutoMocker<SavingsAccount>();
-            automocker.Get<IInterestCalculator>().Calculate().Returns(123);
+        // Arange
+        var automocker = new NSubstituteAutoMocker<SavingsAccount>();
+        automocker.Get<IInterestCalculator>().Calculate().Returns(123);
 
-            // Act
-            automocker.ClassUnderTest.ApplyInterest();
+        // Act
+        automocker.ClassUnderTest.ApplyInterest();
 
-            // Assert
-            Assert.AreEqual(123, automocker.ClassUnderTest.Balance);
-        }
+        // Assert
+        Assert.AreEqual(123, automocker.ClassUnderTest.Balance);
     }
-
+}
+```
 The key difference is that constructor dependency has not been explicitly defined.  Whilst this might not seem significant (we've only reduced our line count be one), imagine the scenario of a class with a large constructor parameter count.  Not only would this result in additional code in the first test above, it will also create a maintainance nightmare when a developer changes the signature (e.g. the addition of a new argument).  Such a change would result in the update of all tests on the class, for which there may be many.  This would be true even for tests that don't need the dependency.  As a direct consequence of using the AutoMocker, the test code becomes significantly easier to write and also maintain, focusing the developer on the functionality being testest and not of the wiring of test objects.
 
 As the parameters were not explicitly defined in the test, their access mechanism is through the Get<T>() method, where T is the type of the parameter you are requesting.  In the case of multiple parameters of the same type, an optional string parameter can be used to specify the parameter name.
